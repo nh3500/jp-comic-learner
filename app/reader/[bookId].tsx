@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import MangaReader from '@/src/components/MangaReader';
@@ -8,7 +8,7 @@ import { MangaPage } from '@/src/manga/types';
 import { TokenData } from '@/src/components/AnnotatedText';
 import { saveProgress } from '@/src/storage/progress';
 import { saveWord } from '@/src/storage/progress';
-import { translate } from '@/src/services/translate';
+import { runPipeline } from '@/src/services/pipeline';
 
 export default function ReaderScreen() {
   const { bookId, uri, title } = useLocalSearchParams<{
@@ -25,6 +25,7 @@ export default function ReaderScreen() {
   const [panelVisible, setPanelVisible] = useState(false);
   const [panelTokens, setPanelTokens] = useState<TokenData[]>([]);
   const [panelTranslation, setPanelTranslation] = useState('');
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   useEffect(() => {
     loadPages();
@@ -67,21 +68,17 @@ export default function ReaderScreen() {
 
   const handleRegionTap = useCallback(
     async (page: MangaPage) => {
-      // TODO: In the future, this will:
-      // 1. Run OCR on the tapped region
-      // 2. Tokenize the recognized text
-      // 3. Translate it
-      // For now, show a demo panel
-      const demoTokens: TokenData[] = [
-        { surface: '俺', reading: 'オレ', pos: '名詞', basic: '俺' },
-        { surface: 'は', reading: 'ハ', pos: '助詞', basic: 'は' },
-        { surface: '海賊王', reading: 'カイゾクオウ', pos: '名詞', basic: '海賊王' },
-        { surface: 'に', reading: 'ニ', pos: '助詞', basic: 'に' },
-        { surface: 'なる', reading: 'ナル', pos: '動詞', basic: 'なる' },
-      ];
-      setPanelTokens(demoTokens);
-      setPanelTranslation('我要成為海賊王');
-      setPanelVisible(true);
+      setOcrLoading(true);
+      try {
+        const result = await runPipeline(page.imageUri);
+        setPanelTokens(result.tokens);
+        setPanelTranslation(result.translation);
+        setPanelVisible(true);
+      } catch (err) {
+        Alert.alert('OCR 失敗', '無法辨識文字，請確認伺服器是否啟動。');
+      } finally {
+        setOcrLoading(false);
+      }
     },
     [],
   );
@@ -118,6 +115,12 @@ export default function ReaderScreen() {
         onPageChange={handlePageChange}
         onRegionTap={handleRegionTap}
       />
+      {ocrLoading && (
+        <View style={styles.ocrOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.ocrLoadingText}>辨識中...</Text>
+        </View>
+      )}
       <LearningPanel
         visible={panelVisible}
         japaneseTokens={panelTokens}
@@ -146,5 +149,20 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#F44336',
+  },
+  ocrOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ocrLoadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#fff',
   },
 });
