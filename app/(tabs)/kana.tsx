@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function KanaScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>JP Comic Learner</Text>
-      <Text style={styles.subtitle}>透過漫畫學日文</Text>
+      <Text style={styles.title}>50音</Text>
+      <Text style={styles.subtitle}>平假名・片假名學習</Text>
     </View>
   );
 }
