@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, Dimensions, TouchableOpacity } from 'react-native';
+import PagerView from 'react-native-pager-view';
 import { Image } from 'expo-image';
 import { MangaPage } from '../manga/types';
 
@@ -20,6 +21,15 @@ export default function MangaReader({
 }: MangaReaderProps) {
   const [currentPage, setCurrentPage] = useState(initialPage);
 
+  const handlePageSelected = useCallback(
+    (e: { nativeEvent: { position: number } }) => {
+      const position = e.nativeEvent.position;
+      setCurrentPage(position);
+      onPageChange?.(position + 1);
+    },
+    [onPageChange],
+  );
+
   if (pages.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -30,7 +40,11 @@ export default function MangaReader({
 
   return (
     <View style={styles.container}>
-      <ScrollView horizontal pagingEnabled>
+      <PagerView
+        style={styles.pager}
+        initialPage={initialPage}
+        onPageSelected={handlePageSelected}
+      >
         {pages.map((page) => (
           <TouchableOpacity
             key={page.id}
@@ -42,10 +56,11 @@ export default function MangaReader({
               source={{ uri: page.imageUri }}
               style={styles.pageImage}
               contentFit="contain"
+              transition={200}
             />
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </PagerView>
       <View style={styles.pageIndicator}>
         <Text style={styles.pageText}>
           {currentPage + 1} / {pages.length}
@@ -60,9 +75,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  pager: {
+    flex: 1,
+  },
   pageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT - 100,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
